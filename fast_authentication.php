@@ -11,7 +11,7 @@
 
 class fast_authentication extends rcube_plugin
 {
-  public $task = 'login';
+  public $task = 'login|logout';
   private $rc;
 
   function init()
@@ -28,9 +28,13 @@ class fast_authentication extends rcube_plugin
 
   function authenticate($params)
   {
-    if ($this->get_auth_code() == 'foo') {
-      $params['user'] = 'foobar@a0s.de';
-      $params['pass'] = 'foobar';
+    if ($token = $this->get_token()) {
+      if ($credentials = $this->fetch_credentials($token)) {
+        $params['user'] = $credentials['email'];
+        $params['pass'] = $credentials['password'];
+      } else {
+        $params['abort'] = true;
+      }
     }
 
     return $params;
@@ -55,8 +59,32 @@ class fast_authentication extends rcube_plugin
     return $params;
   }
 
-  private function get_auth_code()
+  private function fetch_credentials($token)
   {
-    return rcube_utils::get_input_value('fast_auth_code', rcube_utils::INPUT_GET);
+    $ch = curl_init();
+
+    $api_token = $this->rc->config->get('fast_authentication_credentials_api_token');
+    $api_url = $this->rc->config->get('fast_authentication_credentials_api_url');
+
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_URL, "{$api_url}/{$token}");
+    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+      'Authorization: Token ' . $api_token
+    ]);
+
+    $content = curl_exec($ch);
+    $okay = !curl_errno($ch) && curl_getinfo($ch, CURLINFO_HTTP_CODE) == 200;
+    curl_close($ch);
+
+    if ($okay) {
+      return json_decode($content, true);
+    } else {
+      return false;
+    }
+  }
+
+  private function get_token()
+  {
+    return rcube_utils::get_input_value('shared_email_account_token', rcube_utils::INPUT_GET);
   }
 }

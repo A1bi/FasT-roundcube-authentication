@@ -1,3 +1,5 @@
 <?php
 
 $config['fast_authentication_authcode_url'] = 'http://example.com/auth-code';
+$config['fast_authentication_credentials_api_url'] = 'http://example.com/api/credentials';
+$config['fast_authentication_credentials_api_token'] = 'foobar';
